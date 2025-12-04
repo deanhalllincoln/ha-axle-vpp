@@ -3,7 +3,7 @@
   "name": "Axle VPP",
   "documentation": "https://github.com/deanhalllincoln/ha-axle-vpp",
   "requirements": [],
-  "codeowners": ["@deanhalllincolne"],
+  "codeowners": ["@deanhalllincoln"],
   "iot_class": "cloud_polling",
   "version": "1.0.4",
   "config_flow": true
