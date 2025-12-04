@@ -1,10 +1,10 @@
 {
   "domain": "axle_vpp",
   "name": "Axle VPP",
-  "documentation": "https://github.com/example/axle_vpp",
+  "documentation": "https://github.com/deanhalllincoln/ha-axle-vpp",
   "requirements": [],
-  "codeowners": ["@example"],
+  "codeowners": ["@deanhalllincolne"],
   "iot_class": "cloud_polling",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "config_flow": true
 }
