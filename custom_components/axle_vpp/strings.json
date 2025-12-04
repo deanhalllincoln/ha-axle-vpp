@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Axle VPP",
+        "description": "Enter your Axle API token",
+        "data": {
+          "token": "API Token"
+        }
+      }
+    }
+  }
+}
