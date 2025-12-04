@@ -1,0 +1,10 @@
+{
+  "domain": "axle_vpp",
+  "name": "Axle VPP",
+  "documentation": "https://github.com/example/axle_vpp",
+  "requirements": [],
+  "codeowners": ["@example"],
+  "iot_class": "cloud_polling",
+  "version": "1.0.0"
+  "config_flow": true
+}
