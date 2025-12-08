@@ -6,7 +6,7 @@ I recently signed up for Axle Energy’s grid services beta programme, choosing 
 
 ## What is a Grid Event
 
-Events are short periods when the grid needs extra support. During these periods, when the electricity grid is under strain, any power supplied to the grid is valuable — hence the high rate of **£1 per kWh**.
+Events are short periods when the electricity grid needs extra support. During these periods, when the grid is under strain, any power exported to it is valuable, which is why Axle pays **£1 per kWh**.
 
 Here’s a full breakdown of my first event, how it performed, and what people can expect.
 
@@ -20,13 +20,11 @@ Here’s a full breakdown of my first event, how it performed, and what people c
 - **Battery minimum charge:** 10%  
 - **Installed:** March 2025  
 
-Plenty of headroom for export events, even in winter.
-
 ---
 
 ## Notification of the First Event
 
-Axle sent a message the day before:
+Axle sent a day-ahead notification:
 
 > We’ll be exporting from your battery tomorrow 2025-12-04 from 16:30 to 17:30…  
 > We’ll pay you £1/kWh… You don’t need to do anything — we’ll handle this automatically and reset your settings afterwards.
@@ -37,86 +35,109 @@ Clear, simple, and no action required.
 
 ## What Happened During the Event
 
-Nothing changed during the day. Then exactly at **16:30**, a scheduled event appeared automatically in my Fox app.
+Nothing changed during the day. Then at **16:30** a scheduled discharge event appeared automatically in the Fox app.
 
-My inverter immediately began exporting at the full **5 kW** limit. During the event:
+During the one-hour window:
 
 - **Export rate from inverter:** 5 kW  
-- **House load:** around 0.75 kW  
-- **Net export to grid:** around 4.25 kW  
-- **Total energy exported during event:** 4.25 kWh  
+- **House load:** ~0.75 kW  
+- **Net export:** ~4.25 kW  
+- **Total energy exported:** 4.25 kWh  
 
-Everything operated smoothly and exactly as described.
+Everything worked exactly as expected.
 
 ---
 
 ## After the Event
 
-At 17:30, discharge stopped automatically and the inverter reverted to its previous configuration. The Axle-created schedule also disappeared.
+At 17:30, export stopped and the inverter returned to its previous setup. The Axle-created schedule removed itself automatically.
 
-After the event, the battery had:
+Battery state:
 
-- Started around 15.5 kWh (about 77%)  
-- Exported 4.25 kWh  
-- Ending the event at roughly 10.8 kWh  
+- Starting level: ~15.5 kWh (77%)  
+- Exported: 4.25 kWh  
+- Ended event at ~10.8 kWh  
 
-Through the evening, the house continued running from the battery ***until around 9:15 pm, when it reached the 10% minimum capacity***.
-
-- Average consumption per hour between 9:15 pm and midnight: ~1 kWh total  
-***Once the battery hit its 10% limit (around 2 kWh), the remaining evening and night-time load came from the grid. Had there been no grid event, the battery would have comfortably supplied the home until midnight when the low-cost overnight rate begins.***
+The house then ran on the battery until **9:15 pm**, when it reached the **10%** minimum. From that point until midnight (when the cheap rate starts), we drew energy from the grid.
 
 ---
 
 ## Earnings Breakdown
 
-Axle pays **£1/kWh** exported during an event. So, for 4.25 kWh:
+### Standard Axle Rate (Normal £1 per kWh)
 
-- £4.25 from Axle  
+Axle pays **£1/kWh** exported:
 
-Plus my normal export tariff:
+- **Axle payment:** £4.25  
 
-- **E.ON Next:** £0.165/kWh → ~£0.70 extra  
+Plus my standard export tariff:
+
+- **E.ON Next:** £0.165/kWh → ~£0.70  
 
 **Total earned:** £4.95  
 
-***Because the battery reached 10% earlier than it would have without the grid event, we paid for extra imported electricity between 9:15 pm and midnight. That’s 2.45 hours × 1 kWh = 2.45 kWh at £0.265 per kWh, totalling £0.65. Subtracting this from the earnings leaves a net profit of £4.30 for the one-hour export event.***
+Battery depletion meant the house imported extra energy from 9:15 pm to midnight:
 
-**Cost to recharge:**  
-My off-peak rate is £0.067/kWh:  
+- 2.45 hours × 1 kWh ≈ 2.45 kWh  
+- At £0.265/kWh = **£0.65 cost**  
 
-***4.25 kWh × £0.067 ≈ £0.29 to refill the portion of the battery used during the export event.***
+**Net profit from event:** **£4.30**
 
-Even after accounting for battery wear, the return is excellent and provides a return on the capital spent on the inverter and battery setup that I had not anticipated.
+**Recharge cost:**  
+4.25 kWh × £0.067 ≈ **£0.29**
 
-**Guaranteed minimum:**  
-Axle also guarantees at least £10 per month in payouts ***until the end of March 2026***, even in months with few grid events.
+Still an excellent return for a one-hour event.
+
+---
+
+## Bonus Payment for the First Event
+
+Axle boosted the payout for this inaugural event to **£2 per kWh**.
+
+### Earnings at £2/kWh bonus rate:
+
+- **Axle bonus rate:** 4.25 kWh × £2 = **£8.50**  
+- **Plus E.ON SEG:** ~£0.70  
+- **Total:** **£9.20**  
+
+Minus the evening grid import (£0.65):
+
+- **Net profit at bonus rate:** **£8.55**  
+
+### Speed of Payment
+
+The credit for this event was added to my Axle account **within 48 hours**, and I can withdraw funds at **any time**.
+
+---
+
+## Guaranteed Minimum Payment
+
+Axle guarantees **a minimum of £10/month** until **March 2026**, even if very few events occur.
 
 ---
 
 ## Control Options: Event Mode vs Full Control
 
-Axle offers two modes:
-
 ### Full Control
 
-For users who prefer automation instead of DIY tinkering:
+For users who want a hands-off experience:
 
-- Axle automatically schedules pre-charging before grid events  
-- Ensures the battery has enough stored energy to maximise earnings  
-- Handles all inverter settings for you  
+- Automatic pre-charging  
+- Battery always prepared for maximum event export  
+- Axle manages inverter behaviour end to end  
 
-### Events-Only (my choice)
+### Events-Only
 
-For home automation enthusiasts:
+My preferred mode:
 
-- You keep full control of your battery day-to-day  
-- Axle only controls the inverter during the event window  
-- Axle provides an API endpoint with event start/end times, which Home Assistant users can integrate into their automations for:  
-  - Pre-charging  
-  - Adjusting behaviour during the event  
-  - Logging and statistics  
+- I maintain full control of daily operation  
+- Axle only takes control during the event window  
+- They provide an API endpoint with event start/end times, useful for:  
+  - Pre-charge logic  
+  - Managing discharge during events  
+  - Logging and automations in Home Assistant  
 
-Axle works independently of your electricity supplier and tariff.
+Axle works independently of any energy supplier or tariff.
 
 ---
 
@@ -125,38 +146,34 @@ Axle works independently of your electricity supplier and tariff.
 My first Axle event was:
 
 - Seamless  
-- Fully automatic  
+- Fully automated  
 - Financially worthwhile  
 - Non-intrusive  
-- Quickly settled  
+- Quickly paid out  
 
-For me, it’s an ideal balance: an effortless extra income stream that slots neatly into my existing Home Assistant setup.  
+An effortless way to make extra income from a battery system that would otherwise sit idle during peak-price stress events.
 
-***One area still unclear is how frequent grid events are. We have requested from Axle some insight into the last two or three months of events to get a better feel for the typical frequency.***
+We’ve asked Axle for a list of recent past events to understand typical frequency, and I’m looking forward to seeing that data.
 
 ---
 
 ## How to Join Axle and Take Part in Paid Export Events
 
-The sign-up process is straightforward:
-
 1. **Create your account**  
-   Use this link to receive £25 credit instantly:  
-   [https://vpp.axle.energy/landing?ref=R-JQDOUROD](https://vpp.axle.energy/landing?ref=R-JQDOUROD)  
+   Use this link to receive **£25 credit instantly**:  
+   https://vpp.axle.energy/landing?ref=R-JQDOUROD
 
-   *(I also receive £25, which helps me maintain the Home Assistant Axle integration.)*
+   *(I also receive £25, which helps fund development of the Home Assistant Axle integration.)*
 
 2. **Upload a recent electricity bill**  
-   This allows Axle to retrieve your MPAN and meter details.
+   This allows Axle to validate your MPAN.
 
-3. **Provide inverter login information**  
-   So Axle can control charging and exporting during events.
+3. **Provide inverter login details**  
+   Needed so they can control export during event windows.
 
-4. **Add your tariff details**  
-   This lets them optimise your participation effectively.
+4. **Add your tariff information**  
+   Used to optimise participation.
 
 After that, you’re ready for your first grid event.
-
-
 
 
