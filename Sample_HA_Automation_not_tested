@@ -1,0 +1,214 @@
+alias: Axle Grid Event Management
+description: >
+  Manage Fox ESS battery during Axle VPP export events.
+  Automation triggers 2 hours before an export event and whenever battery SOC changes.
+  It calculates if the battery can supply the inverter at max export with an adaptive buffer.
+  If a deficit exists, it charges at maximum 5 kW to reach the desired SOC.
+  Charge stops automatically when target SOC is reached or 10 minutes before event start.
+  Includes full debugging email with all variables.
+  Fro Axle account us link https://vpp.axle.energy/landing/grid?ref=R-JQDOUROD
+
+mode: single
+
+# =============================================
+# Triggers
+# =============================================
+trigger:
+  # Trigger 1: template trigger 2 hours before event start
+  - platform: template
+    value_template: >-
+      {% set event_start = states('sensor.axle_event_start_time') %}
+      {% if event_start in ['', 'unknown', 'unavailable'] %}
+        {{ false }}
+      {% else %}
+        {% set event_start_ts = as_timestamp(event_start) %}
+        {% set now_ts = as_timestamp(now()) %}
+        {# Trigger only if current time is within 2 hours before event start #}
+        {{ event_start_ts - 7200 <= now_ts <= event_start_ts }}
+      {% endif %}
+  # Trigger 2: whenever battery SOC changes
+  - platform: state
+    entity_id: sensor.foxinvertermodbus_battery_soc
+
+# =============================================
+# Conditions
+# =============================================
+condition:
+  # Generic template block to satisfy HA requirement; always true
+  - condition: template
+    value_template: |-
+      {# ============================================== #}
+      {#  Automation: Axle Grid Event Management           #}
+      {#  Purpose: Ensure battery can supply & discharge during export events #}
+      {#  Notes: Stateless, reactive, triggers on SOC or time                 #}
+      {# ============================================== #}
+      {{ true }}
+  # Event start time must exist
+  - condition: template
+    value_template: >-
+      {{ states('sensor.axle_event_start_time') not in ['', 'unknown', 'unavailable'] }}
+  # Only trigger if event is an export event
+  - condition: template
+    value_template: >-
+      {{ states('sensor.axle_event_import_export') | lower == 'export' }}
+  # Event end time must exist and be after start
+  - condition: template
+    value_template: >-
+      {{ states('sensor.axle_event_end_time') not in ['', 'unknown', 'unavailable'] and
+         as_timestamp(states('sensor.axle_event_end_time')) > as_timestamp(states('sensor.axle_event_start_time')) }}
+
+# =============================================
+# Actions
+# =============================================
+action:
+
+  # -------------------------------------------------
+  # Variables block 1: sensor states, constants, calculations
+  # -------------------------------------------------
+  - variables:
+      # Event times
+      event_start_ts: "{{ as_timestamp(states('sensor.axle_event_start_time')) }}"
+      event_end_ts: "{{ as_timestamp(states('sensor.axle_event_end_time')) }}"
+      now_ts: "{{ as_timestamp(now()) }}"
+      seconds_until_event_start: "{{ event_start_ts - now_ts }}"
+      event_duration_hours: "{{ ((event_end_ts - event_start_ts)/3600) | float(6) }}"
+
+      # Battery and inverter constants
+      battery_capacity_kwh: 20.72                # total battery capacity
+      min_soc_percent: 10.0                      # minimum allowed SOC
+      usable_capacity_kwh: "{{ battery_capacity_kwh * (1 - min_soc_percent/100) | float(3) }}"
+      inverter_max_export_kw: 5.0                # inverter max output
+      max_charge_power_w: 5000                   # max charge power
+
+      # Adaptive buffer based on event duration
+      buffer_multiplier: >-
+        {% if event_duration_hours <= 1.0 %}
+          1.10
+        {% elif event_duration_hours >= 3.0 %}
+          1.25
+        {% else %}
+          1.20
+        {% endif %}
+
+      # Sensor readings
+      battery_soc_number: "{{ states('sensor.foxinvertermodbus_battery_soc') | float(0) }}"
+      home_power_w: "{{ states('sensor.home_power_w') | float(0) }}"
+      home_load_kw: "{{ (home_power_w | abs)/1000.0 }}"
+
+      # Usable battery energy above min SOC
+      battery_energy_available_usable_kwh: >-
+        {{ [((battery_soc_number - min_soc_percent)/100)*battery_capacity_kwh, 0.0]|max|float(3) }}
+
+      # Energy battery must deliver during event (inverter max output)
+      energy_battery_during_event_kwh: >-
+        {{ (inverter_max_export_kw * event_duration_hours)|float(3) }}
+
+      # Total required energy including adaptive buffer
+      total_required_with_buffer_kwh: >-
+        {{ (energy_battery_during_event_kwh * buffer_multiplier)|float(3) }}
+
+      # Energy deficit calculation
+      energy_deficit_kwh: "{{ (total_required_with_buffer_kwh - battery_energy_available_usable_kwh)|float(3) }}"
+      energy_deficit_kwh_positive: "{{ [energy_deficit_kwh, 0.0]|max|float(3) }}"
+
+      # Desired SOC to reach to cover deficit
+      desired_soc_percent_raw: "{{ (min_soc_percent + (total_required_with_buffer_kwh / battery_capacity_kwh * 100))|float(3) }}"
+      desired_soc_percent: "{{ [desired_soc_percent_raw, 100.0]|min|round(1) }}"
+
+      # Charge power: max 5 kW if deficit exists, else 0
+      final_required_charge_power_w_clamped: >-
+        {% if energy_deficit_kwh_positive > 0 %}
+          {{ max_charge_power_w }}
+        {% else %}
+          0
+        {% endif %}
+
+      # Entities to control
+      fox_operating_mode_entity: select.foxinvertermodbus_work_mode
+      fox_max_soc_entity: number.foxinvertermodbus_max_soc
+      fox_force_charge_power_entity: number.foxinvertermodbus_force_charge_power
+
+  # -------------------------------------------------
+  # Variables block 2: notification/email info
+  # -------------------------------------------------
+  - variables:
+      email_target: **** Email address *****
+      email_title_start: >-
+        {{ "Axle event prep: " ~ (states('sensor.axle_event_start_time') or 'unknown') }}
+      email_title_end: >-
+        {{ "Axle event complete: " ~ (states('sensor.axle_event_end_time') or 'unknown') }}
+      email_message_prep: >-
+        >
+        Battery SOC: {{ battery_soc_number }}%
+        Desired SOC: {{ desired_soc_percent }}%
+        Min SOC reserved: {{ min_soc_percent }}%
+        Usable battery available: {{ battery_energy_available_usable_kwh | round(3) }} kWh
+        Energy required (with buffer): {{ total_required_with_buffer_kwh | round(3) }} kWh
+        Energy battery must deliver during event: {{ energy_battery_during_event_kwh | round(3) }} kWh
+        Energy deficit kWh: {{ energy_deficit_kwh_positive | round(3) }} kWh
+        Charge power (W): {{ final_required_charge_power_w_clamped }}
+        Event duration (hrs): {{ event_duration_hours }}
+        Adaptive buffer: {{ buffer_multiplier }}
+        Seconds until event: {{ seconds_until_event_start }}
+
+  # -------------------------------------------------
+  # Main automation logic
+  # -------------------------------------------------
+  - choose:
+
+      # --- Start Force Charge if deficit exists and SOC < desired ---
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ energy_deficit_kwh_positive > 0 and battery_soc_number < desired_soc_percent }}
+        sequence:
+          # Set operating mode to Force Charge
+          - service: select.select_option
+            target:
+              entity_id: "{{ fox_operating_mode_entity }}"
+            data:
+              option: "Force Charge"
+          # Set max SOC to desired SOC
+          - service: number.set_value
+            target:
+              entity_id: "{{ fox_max_soc_entity }}"
+            data:
+              value: "{{ desired_soc_percent }}"
+          # Set charge power to max (5 kW)
+          - service: number.set_value
+            target:
+              entity_id: "{{ fox_force_charge_power_entity }}"
+            data:
+              value: "{{ final_required_charge_power_w_clamped }}"
+          # Send prep email with all variables (modern syntax)
+          - service: notify.****notify service *****
+            data:
+              message: "{{ email_message_prep }}"
+              title: "{{ email_title_start }}"
+
+      # --- Stop charge if SOC reached or 10 minutes before event ---
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ battery_soc_number >= desired_soc_percent
+                 or now_ts >= (event_start_ts - 600) }}
+        sequence:
+          # Stop charging
+          - service: number.set_value
+            target:
+              entity_id: "{{ fox_force_charge_power_entity }}"
+            data:
+              value: 0
+          # Revert operating mode to Feed-in Priority
+          - service: select.select_option
+            target:
+              entity_id: "{{ fox_operating_mode_entity }}"
+            data:
+              option: "Feed-in Priority"
+          # Send end email with all variables (modern syntax)
+          - service: notify.notify.****notify service *****
+            data:
+              message: "{{ email_message_prep }}"
+              title: "{{ email_title_end }}"
+
+    default: []
