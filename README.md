@@ -1,143 +1,170 @@
-# ha-axle-vpp
-Home Assistant HACS install for Axle VPP Api
+# Home Assistant HACS Integration for Axle VPP API
 
+## Axle VPP Integration for Home Assistant
 
-Axle VPP Integration for Home Assistant
+A custom Home Assistant integration for pulling Axle Virtual Power Plant (VPP) event data into **individual, easy-to-use sensor entities**.
 
-A custom Home Assistant integration for pulling Axle Virtual Power Plant (VPP) event data into individual, easy-to-use sensor entities.
-This integration removes the need for manual REST sensors in configuration.yaml and provides a simpler, cleaner, HACS-friendly installation.
+This integration removes the need for manual REST sensors in `configuration.yaml` and provides a **clean, UI-based, HACS-friendly installation**, suitable for both advanced Home Assistant users and those who prefer not to edit YAML.
 
-✨ Features
+---
 
-Fetches current Axle VPP event info from the official Axle API
+## ✨ Features
 
-Provides distinct Home Assistant sensor entities:
+- Fetches current Axle VPP event data from the official Axle API
+- Provides separate Home Assistant sensor entities (no attributes buried in a single sensor)
+- Includes **human-friendly datetime sensors** using Home Assistant’s native timestamp handling
+- Uses Home Assistant Config Flow (UI-based setup)
+- Fully HACS-compatible with versioned releases
+- Automatic polling using `DataUpdateCoordinator`
+- No YAML configuration required
 
-start_time
+---
 
-end_time
+## 📊 Available Sensors
 
-import_export
+### Raw API Sensors
 
-updated_at
+These reflect the data exactly as returned by the Axle API:
 
-Uses Home Assistant’s Config Flow (UI setup)
+- `sensor.axle_start_time`
+- `sensor.axle_end_time`
+- `sensor.axle_import_export`
+- `sensor.axle_updated_at`
 
-Supports HACS for simple installation and automatic updates
+### Friendly Datetime Sensors
 
-No YAML configuration required
+These convert Axle’s UTC timestamps into **local UK time** and use Home Assistant’s `timestamp` device class for easy use in automations and dashboards:
 
-📦 Installation (HACS)
-Step 1: Add the repository to HACS
+- `sensor.axle_start_time_friendly`
+- `sensor.axle_end_time_friendly`
+- `sensor.axle_updated_at_friendly`
 
-Open Home Assistant
+> **Note**  
+> When no grid event is active or scheduled, `start_time` and `end_time` (and their friendly versions) will show as `unknown`.  
+> `updated_at_friendly` updates on every API poll (default every 600 seconds).
 
-Go to HACS → Integrations
+---
 
-Select the three-dot menu (⋮) → Custom repositories
+## 📦 Installation (HACS)
 
-Add:
+### Step 1: Add the repository to HACS
 
+1. Open **Home Assistant**
+2. Go to **HACS → Integrations**
+3. Open the three-dot menu (⋮) → **Custom repositories**
+4. Add:
 https://github.com/deanhalllincoln/ha-axle-vpp
 
+yaml
+Copy code
+5. Category: **Integration**
 
-Category: Integration
+---
 
-Step 2: Install the integration
+### Step 2: Install the integration
 
-Return to HACS → Integrations
+1. Go back to **HACS → Integrations**
+2. Search for **Axle VPP**
+3. Click **Install**
 
-Search for Axle VPP
+---
 
-Click Install
+### Step 3: Configure the integration
 
-Step 3: Configure
+1. Go to **Settings → Devices & Services**
+2. Click **Add Integration**
+3. Search for **Axle VPP**
+4. Enter your **Axle API token**
+5. Save
 
-Go to Settings → Devices & Services
+Your sensors will appear under a device called **Axle VPP**.
 
-Click Add Integration
+---
 
-Search for Axle VPP
+## 🔑 Getting Your Axle API Token
 
-Enter your API token
+Once your Axle account is active:
 
-Save
-
-Your sensors will now appear under the "Axle VPP" device.
-
-🔑 Getting Your Axle API Token
-
-Axle provides your API token once your account is active.
-To obtain one:
-
-Log in to your Axle account:
+1. Log in to your Axle dashboard:  
 https://vpp.axle.energy
+2. Navigate to **Account → Integrations / API**
+3. Copy your API token
+4. Paste it into the Axle VPP integration setup in Home Assistant
 
-Go to Account → Integrations / API
+---
 
-Copy the API token provided
+## 📝 How to Sign Up with Axle
 
-Paste into the Axle VPP integration in Home Assistant
+Axle is a UK-based flexibility service that rewards households for supporting the electricity grid during periods of high demand.
 
-📝 How to Sign Up with Axle
+### Sign-up process
 
-Axle VPP is a UK-based flexibility service that rewards households for participating in demand-response events.
-Signing up is straightforward:
-
-Visit the sign-up page:
+1. Visit the Axle sign-up page:  
 https://vpp.axle.energy/landing?ref=R-JQDOUROD
+2. Create an account
+3. Upload a recent electricity bill (for meter and MPAN details)
+4. Provide inverter access details
+5. Add your electricity tariff information
+6. Wait for approval and activation
 
-Create an account
+Once approved, your API token will become available.
 
-Complete the onboarding steps
+---
 
-Wait for approval and activation of your Axle dashboard
+## 💷 Bonus Credit
 
-Your API token will appear once you’re fully enrolled
+If you register using the link above:
 
-💷 Bonus Credit
+- **You receive £25 credit**
+- **I also receive £25**
 
-If you register using the link above, Axle will add £25 credit to your account, and they also add £25 to mine.
-This helps support ongoing development and maintenance of this integration.
+This helps support ongoing development and maintenance of this Home Assistant integration.
 
-Participation via the referral link is optional, but very much appreciated.
+Using the referral link is optional, but very much appreciated.
 
-📁 Directory Structure
+---
 
-For reference, the custom component uses the following layout:
+## 📁 Directory Structure
 
 custom_components/axle_vpp/
-  ├── __init__.py
-  ├── manifest.json
-  ├── const.py
-  ├── coordinator.py
-  ├── sensor.py
-  ├── config_flow.py
-  └── strings.json
+├── init.py
+├── manifest.json
+├── const.py
+├── coordinator.py
+├── sensor.py
+├── config_flow.py
+└── strings.json
 
-🛠 How It Works
+---
 
-The integration uses Home Assistant’s DataUpdateCoordinator to poll Axle's API every 600 seconds.
+## 🛠 How It Works
 
-JSON from the Axle event endpoint is parsed.
+- Uses Home Assistant’s `DataUpdateCoordinator` to poll Axle’s API every **600 seconds**
+- Fetches event data from:
+https://api.axle.energy/vpp/home-assistant/event
 
-Each attribute becomes its own Home Assistant sensor entity.
+yaml
+Copy code
+- Parses the response into individual sensors
+- Friendly datetime sensors convert UTC timestamps into local UK time
+- All entities update automatically and are grouped under a single device
 
-Entities update automatically and appear together under an Axle VPP device.
+---
 
-🚀 Roadmap
+## 🚀 Roadmap
 
-Optional sensors for additional Axle endpoints when released
+- Additional Axle endpoints as they become available
+- Event history sensors
+- Optional notifications for upcoming grid events
+- Configurable polling interval
+- Improved diagnostics and logging
 
-Configurable scan interval
+---
 
-Error codes and event history
+## 💬 Support
 
-Optional notifications
+If you encounter issues, please open a GitHub issue with logs and details.
 
-💬 Support
+Feature requests and contributions are welcome.
 
-If you discover issues, feel free to open a GitHub issue.
-Feature requests and contributions are always welcome.
-
-And if this integration helps you, using the referral link for your Axle signup really does assist with future development.
+And if this integration helps you, using the Axle referral link genuinely supports future development.
