@@ -1,202 +1,70 @@
-# Axle Grid Event Management v6  
-## Fully Documented & Public Version
-To setup an Axle account use link https://vpp.axle.energy/landing/grid?ref=R-JQDOUROD
----
+alias: Axle Grid Event Management (Public Example)
+description: >
+  Manage a Fox ESS battery during Axle VPP export events.
 
-## Overview
+  This single automation handles the complete event lifecycle:
+    0) When Axle event data updates:
+         - Update helper times (prep, start, end)
+    1) When event becomes valid:
+         - Send publication email
+    2) At prep time (1 hour before event):
+         - Calculate required SOC
+         - Force charge if required
+         - Send prep email
+    3) At event start:
+         - Switch inverter to Force Discharge
+         - Lower room temperature
+         - Send event start email
+    4) At event end:
+         - Restore inverter mode
+         - Restore room temperature
+         - Send event finished email
 
-This Home Assistant automation manages a **Fox ESS battery system** during **Axle VPP export events**.
-
-It automatically:
-
-- Tracks Axle event publication
-- Calculates battery energy requirements
-- Pre-charges the battery if required
-- Manages inverter operating modes
-- Temporarily reduces heat pump demand
-- Sends **fully diagnostic emails** at each lifecycle stage
-
-Everything is driven by **Axle’s API updates** and **Home Assistant helpers**.
-
----
-
-## Prerequisites
-
-Before using this automation, you **must** set up the following in Home Assistant.
-
----
-
-### 1. Input Datetime Helpers
-
-Create **three input_datetime helpers**:
-
-- `input_datetime.axle_event_prep_time`
-- `input_datetime.axle_event_start_trigger`
-- `input_datetime.axle_event_end_trigger`
-
-These helpers are used as **time-based triggers** to manage the Axle event lifecycle.
-
----
-
-### 2. Email / Notification Integration
-
-This automation sends **HTML diagnostic emails** at each major lifecycle stage.
-
-- A **Gmail integration** is assumed
-- Notification service format used:
-notify.first-part-of-email_gmail_com
-
-If you use a different notification platform:
-
-- Replace **all `notify.XYZ` actions** in the automation
-- Keep the **message content unchanged**
-
-### 3. Axle VPP Integration
-
-Install the Axle integration via **HACS**:
-
-https://github.com/deanhalllincoln/ha-axle-vpp
-
-
-This integration provides the following entities:
-
-- `sensor.axle_start_time`
-- `sensor.axle_end_time`
-- `sensor.axle_import_export`
-
-Without this integration, the automation will not function.
-
-### 4. Inverter Integration (Fox ESS Modbus)
-
-This automation assumes **Fox ESS Modbus** entities are available, including:
-
-- Battery SOC sensor
-- Inverter operating mode selector
-- Maximum SOC number entity
-- Force charge power number entity
-
-If you use a different inverter:
-
-- Replace these entities with equivalents from your system
-- Keep the underlying logic intact
-
----
-
-### 5. Heat Pump / Large Load Control
-
-This automation temporarily reduces household demand during export events to maximise grid export.
-
-- Written for **Daikin Altherma**
-- Uses the following entity:
-climate.altherma_room_temperature
-
-If you use:
-
-- A different heat pump
-- An EV charger
-- An immersion heater
-- Or other large electrical loads
-
-Modify the relevant `climate.set_temperature` (or equivalent) actions to suit your system.
-
----
-
-Full script (fully commented) below copy and paste in to a new automation in Home Assistant and make the modifications as your system requires.
-
-
-
-
-
-
-
-
-
-
-
-
-
-alias: Axle Grid Event Management v6
-description: |
-  PUBLIC / FULLY DOCUMENTED VERSION
-
-  This automation manages a Fox ESS battery during Axle VPP EXPORT events.
-
-  It combines TWO previously separate automations:
-    • Axle helper maintenance
-    • Event lifecycle management
-
-  ------------------------------------------------------------
-  EVENT LIFECYCLE
-  ------------------------------------------------------------
-  0) Axle publishes or updates event times
-       - Update helper datetimes
-
-  1) Event published
-       - Send full diagnostic email
-
-  2) Prep time (1 hour before event)
-       - Calculate energy requirements
-       - Determine minimum SOC floor
-       - Force charge if required
-       - Send prep email
-
-  3) Battery SOC reaches prep floor
-       - Stop force charging automatically
-       - Restore normal inverter mode
-       - NO email sent
-
-  4) Event start
-       - Switch inverter to Force Discharge
-       - Reduce heat pump demand
-       - Send start email
-
-  5) Event end
-       - Restore inverter mode
-       - Restore heat pump temperature
-       - Send finished email
-
-  SOC-triggered runs NEVER send emails.
-  They exist only to stop force charging safely.
+  Notes:
+    - SOC-triggered runs are logic-only and do NOT send emails.
+    - All personal identifiers have been anonymised.
+    - Update entity IDs to match your own system.
 
 mode: single
 
-############################################################
+############################################
 # TRIGGERS
-############################################################
+############################################
 triggers:
-
-  # Axle publishes or updates event timing
+  # Axle publishes new start or end time
   - trigger: state
     entity_id:
       - sensor.axle_start_time
       - sensor.axle_end_time
 
-  # Detect event publication (helper update)
+  # Event publication helper updated
   - trigger: state
     entity_id: input_datetime.axle_event_start_trigger
 
-  # Time-based lifecycle triggers
+  # Prep time reached (1 hour before event)
   - trigger: time
     at: input_datetime.axle_event_prep_time
 
+  # Event start time reached
   - trigger: time
     at: input_datetime.axle_event_start_trigger
 
+  # Event end time reached
   - trigger: time
     at: input_datetime.axle_event_end_trigger
 
-  # Battery SOC updates (logic-only)
+  # Battery SOC changes (logic-only recalculation)
   - trigger: state
-    entity_id: sensor.foxinvertermodbus_battery_soc
+    entity_id: sensor.battery_soc
 
-############################################################
-# CONDITIONS – GLOBAL SAFETY GATES
-############################################################
+
+############################################
+# CONDITIONS
+############################################
 conditions:
-
-  # Ensure Axle event times exist and are valid
+  # Ensure start and end times are valid
   - condition: template
-    value_template: |
+    value_template: >
       {{ states('sensor.axle_start_time') not in ['', 'unknown', 'unavailable']
          and states('sensor.axle_end_time') not in ['', 'unknown', 'unavailable']
          and as_timestamp(states('sensor.axle_end_time'))
@@ -204,66 +72,35 @@ conditions:
 
   # Only act on EXPORT events
   - condition: template
-    value_template: "{{ states('sensor.axle_import_export') | lower == 'export' }}"
+    value_template: >
+      {{ states('sensor.axle_import_export') | lower == 'export' }}
 
-############################################################
-# ACTIONS
-############################################################
+
+############################################
+# VARIABLES
+############################################
 actions:
-
-  ##########################################################
-  # VARIABLES & CALCULATIONS
-  ##########################################################
   - variables:
 
-      # Convert Axle event times into timestamps
+      # --- Event timing ---
       event_start_ts: "{{ as_timestamp(states('sensor.axle_start_time')) }}"
       event_end_ts: "{{ as_timestamp(states('sensor.axle_end_time')) }}"
-
-      # Current time
       now_ts: "{{ as_timestamp(now()) }}"
-
-      # Seconds remaining until event start
       seconds_until_event_start: "{{ event_start_ts - now_ts }}"
+      event_duration_hours: >
+        {{ ((event_end_ts - event_start_ts) / 3600) | float(3) }}
 
-      # Event duration in hours
-      event_duration_hours: "{{ ((event_end_ts - event_start_ts) / 3600) | float(3) }}"
+      # --- Battery configuration (EDIT FOR YOUR SYSTEM) ---
+      battery_capacity_kwh: 20.0
+      min_soc_percent: 10
+      inverter_max_export_kw: 5
+      max_charge_power_kw: 5
 
-      ######################################################
-      # USER CONFIGURATION SECTION
-      ######################################################
+      usable_capacity_kwh: >
+        {{ battery_capacity_kwh * (1 - min_soc_percent / 100) }}
 
-      # Total battery capacity (kWh)
-      battery_capacity_kwh: 20.72        # CHANGE FOR YOUR SYSTEM
-
-      # Minimum SOC reserve (%)
-      min_soc_percent: 10                # CHANGE FOR YOUR SYSTEM
-
-      # Maximum export power (kW)
-      inverter_max_export_kw: 5          # CHANGE FOR YOUR SYSTEM
-
-      # Maximum force charge power (kW)
-      max_charge_power_kw: 5             # CHANGE FOR YOUR SYSTEM
-
-      ######################################################
-      # DERIVED BATTERY VALUES
-      ######################################################
-
-      usable_capacity_kwh: "{{ battery_capacity_kwh * (1 - min_soc_percent / 100) }}"
-
-      battery_soc_number: "{{ states('sensor.foxinvertermodbus_battery_soc') | float(0) }}"
-
-      battery_energy_available_usable_kwh: |
-        {{ [((battery_soc_number - min_soc_percent) / 100)
-             * battery_capacity_kwh, 0] | max }}
-
-      ######################################################
-      # EVENT ENERGY REQUIREMENTS
-      ######################################################
-
-      energy_battery_during_event_kwh: "{{ inverter_max_export_kw * event_duration_hours }}"
-
-      buffer_multiplier: |
+      # Buffer scaling based on event duration
+      buffer_multiplier: >
         {% if event_duration_hours <= 1 %}
           1.10
         {% elif event_duration_hours >= 3 %}
@@ -272,23 +109,37 @@ actions:
           1.20
         {% endif %}
 
-      total_required_with_buffer_kwh: "{{ energy_battery_during_event_kwh * buffer_multiplier }}"
+      # --- Live battery state ---
+      battery_soc_number: >
+        {{ states('sensor.battery_soc') | float(0) }}
 
-      energy_deficit_kwh: "{{ total_required_with_buffer_kwh - battery_energy_available_usable_kwh }}"
+      battery_energy_available_usable_kwh: >
+        {{ [((battery_soc_number - min_soc_percent) / 100)
+             * battery_capacity_kwh, 0] | max }}
 
-      energy_deficit_kwh_positive: "{{ [energy_deficit_kwh, 0] | max }}"
+      energy_required_kwh: >
+        {{ inverter_max_export_kw * event_duration_hours }}
 
-      ######################################################
-      # SOC TARGETS
-      ######################################################
+      total_required_with_buffer_kwh: >
+        {{ energy_required_kwh * buffer_multiplier }}
 
-      desired_soc_percent_raw: |
+      energy_deficit_kwh: >
+        {{ total_required_with_buffer_kwh
+           - battery_energy_available_usable_kwh }}
+
+      energy_deficit_kwh_positive: >
+        {{ [energy_deficit_kwh, 0] | max }}
+
+      desired_soc_percent_raw: >
         {{ min_soc_percent
-           + (total_required_with_buffer_kwh / battery_capacity_kwh * 100) }}
+           + (total_required_with_buffer_kwh
+              / battery_capacity_kwh * 100) }}
 
-      desired_soc_percent: "{{ [desired_soc_percent_raw, 100] | min | round(1) }}"
+      desired_soc_percent: >
+        {{ [desired_soc_percent_raw, 100] | min | round(1) }}
 
-      prep_soc_floor_percent: |
+      # Minimum SOC floor during prep window
+      prep_soc_floor_percent: >
         {% if event_duration_hours <= 1 %}
           50
         {% elif event_duration_hours <= 2 %}
@@ -297,7 +148,7 @@ actions:
           100
         {% endif %}
 
-      final_required_charge_power_kw_clamped: |
+      final_required_charge_power_kw: >
         {% if energy_deficit_kwh_positive > 0
               or battery_soc_number < prep_soc_floor_percent %}
           {{ max_charge_power_kw }}
@@ -305,183 +156,188 @@ actions:
           0
         {% endif %}
 
-      ######################################################
-      # ENTITY REFERENCES (CHANGE IF REQUIRED)
-      ######################################################
+      # --- System entities (EDIT TO MATCH YOUR INSTALLATION) ---
+      inverter_mode_entity: select.inverter_work_mode
+      inverter_max_soc_entity: number.inverter_max_soc
+      inverter_force_charge_power_entity: number.inverter_force_charge_power
+      room_climate_entity: climate.room_temperature
 
-      fox_operating_mode_entity: select.foxinvertermodbus_work_mode
-      fox_max_soc_entity: number.foxinvertermodbus_max_soc
-      fox_force_charge_power_entity: number.foxinvertermodbus_force_charge_power
+      # --- Email configuration ---
+      email_target: your_email@example.com
 
-      email_target: XXXXXXXXX@gmail.com
-
-      ######################################################
-      # FULL DIAGNOSTIC EMAIL BODY
-      ######################################################
       email_message_diagnostic: >
-        Axle Grid Event – Full Diagnostic Report<br><br>
-        <b>Event Timing</b><br>
-        Event start time: {{ states('sensor.axle_start_time') }}<br>
-        Event end time: {{ states('sensor.axle_end_time') }}<br>
-        Event duration (hours): {{ event_duration_hours | round(2) }}<br>
-        Seconds until event start: {{ seconds_until_event_start | round(0) }}<br><br>
+        Axle Grid Event – Diagnostic Report
 
-        <b>Battery Status</b><br>
-        Battery SOC: {{ battery_soc_number | round(2) }} %<br>
-        Battery capacity: {{ battery_capacity_kwh }} kWh<br>
-        Min SOC reserve: {{ min_soc_percent }} %<br>
-        Usable energy available: {{ battery_energy_available_usable_kwh | round(2) }} kWh<br>
-        Desired SOC for event: {{ desired_soc_percent }} %<br>
-        Prep SOC floor: {{ prep_soc_floor_percent }} %<br>
-        Energy deficit: {{ energy_deficit_kwh | round(2) }} kWh<br>
-        Charge power requested: {{ final_required_charge_power_kw_clamped }} kW<br><br>
+        Event start: {{ states('sensor.axle_start_time') }}
+        Event end: {{ states('sensor.axle_end_time') }}
+        Duration (hours): {{ event_duration_hours | round(2) }}
 
-        <b>Helpers</b><br>
-        Prep time: {{ states('input_datetime.axle_event_prep_time') }}<br>
-        Event start helper: {{ states('input_datetime.axle_event_start_trigger') }}<br>
-        Event end helper: {{ states('input_datetime.axle_event_end_trigger') }}<br><br>
+        Battery SOC: {{ battery_soc_number | round(2) }} %
+        Desired SOC: {{ desired_soc_percent }} %
+        Prep SOC floor: {{ prep_soc_floor_percent }} %
+        Energy deficit: {{ energy_deficit_kwh | round(2) }} kWh
+        Charge power request: {{ final_required_charge_power_kw }} kW
 
-        <b>Fox ESS</b><br>
-        Inverter mode: {{ states(fox_operating_mode_entity) }}<br>
-        Max SOC: {{ states(fox_max_soc_entity) }} %<br>
-        Force charge power: {{ states(fox_force_charge_power_entity) }} kW<br><br>
+        Trigger source:
+        {{ trigger.entity_id if trigger.entity_id is defined else 'time-based' }}
 
-        Trigger source: {{ trigger.entity_id if trigger.entity_id is defined else 'time-based' }}
 
-############################################################
-# EVENT LOGIC (CHOOSE)
-############################################################
+############################################
+# LOGIC BRANCHES
+############################################
   - choose:
 
-      # Axle event updated → update helpers
+      ############################################
+      # 1. Update helper times when Axle changes
+      ############################################
       - conditions:
           - condition: template
-            value_template: |
+            value_template: >
               {{ trigger.platform == 'state'
                  and trigger.entity_id in
-                    ['sensor.axle_start_time','sensor.axle_end_time'] }}
+                    ['sensor.axle_start_time',
+                     'sensor.axle_end_time'] }}
         sequence:
           - variables:
               prep_ts: "{{ event_start_ts - 3600 }}"
-          - action: input_datetime.set_datetime
+
+          - service: input_datetime.set_datetime
             target:
               entity_id: input_datetime.axle_event_prep_time
             data:
               timestamp: "{{ prep_ts }}"
-          - action: input_datetime.set_datetime
+
+          - service: input_datetime.set_datetime
             target:
               entity_id: input_datetime.axle_event_start_trigger
             data:
               timestamp: "{{ event_start_ts }}"
-          - action: input_datetime.set_datetime
+
+          - service: input_datetime.set_datetime
             target:
               entity_id: input_datetime.axle_event_end_trigger
             data:
               timestamp: "{{ event_end_ts }}"
 
-      # Event published email
+
+      ############################################
+      # 2. Event published email
+      ############################################
       - conditions:
           - condition: template
-            value_template: "{{ trigger.entity_id == 'input_datetime.axle_event_start_trigger' }}"
+            value_template: >
+              {{ trigger.platform == 'state'
+                 and trigger.entity_id
+                 == 'input_datetime.axle_event_start_trigger' }}
         sequence:
-          - action: notify.XXXXXXXXX_gmail_com
+          - service: notify.email_notification_service
             data:
               title: Axle event published
               message: "{{ email_message_diagnostic }}"
               target: "{{ email_target }}"
 
-      # Prep time
+
+      ############################################
+      # 3. Prep window logic
+      ############################################
       - conditions:
           - condition: template
-            value_template: "{{ trigger.entity_id == 'input_datetime.axle_event_prep_time' }}"
+            value_template: >
+              {{ trigger.platform == 'time'
+                 and trigger.entity_id
+                 == 'input_datetime.axle_event_prep_time' }}
         sequence:
+
           - choose:
               - conditions:
                   - condition: template
-                    value_template: |
+                    value_template: >
                       {{ energy_deficit_kwh_positive > 0
-                         or battery_soc_number < prep_soc_floor_percent }}
+                         or battery_soc_number
+                            < prep_soc_floor_percent }}
                 sequence:
-                  - action: select.select_option
+                  - service: select.select_option
                     target:
-                      entity_id: "{{ fox_operating_mode_entity }}"
+                      entity_id: "{{ inverter_mode_entity }}"
                     data:
                       option: Force Charge
-                  - action: number.set_value
+
+                  - service: number.set_value
                     target:
-                      entity_id: "{{ fox_max_soc_entity }}"
+                      entity_id: "{{ inverter_max_soc_entity }}"
                     data:
                       value: "{{ desired_soc_percent }}"
-                  - action: number.set_value
+
+                  - service: number.set_value
                     target:
-                      entity_id: "{{ fox_force_charge_power_entity }}"
+                      entity_id:
+                        "{{ inverter_force_charge_power_entity }}"
                     data:
-                      value: "{{ final_required_charge_power_kw_clamped }}"
-          - action: notify.XXXXXXXXX_gmail_com
+                      value: "{{ final_required_charge_power_kw }}"
+
+          - service: notify.email_notification_service
             data:
               title: Axle event prep started
               message: "{{ email_message_diagnostic }}"
               target: "{{ email_target }}"
 
-      # Stop force charge when prep floor reached
-      - conditions:
-          - condition: template
-            value_template: |
-              {{ trigger.entity_id == 'sensor.foxinvertermodbus_battery_soc'
-                 and battery_soc_number >= prep_soc_floor_percent
-                 and states(fox_operating_mode_entity) == 'Force Charge'
-                 and now_ts >= as_timestamp(states('input_datetime.axle_event_prep_time'))
-                 and now_ts < event_start_ts }}
-        sequence:
-          - action: number.set_value
-            target:
-              entity_id: "{{ fox_force_charge_power_entity }}"
-            data:
-              value: 0
-          - action: select.select_option
-            target:
-              entity_id: "{{ fox_operating_mode_entity }}"
-            data:
-              option: Feed-in First
 
-      # Event start
+      ############################################
+      # 4. Event start actions
+      ############################################
       - conditions:
           - condition: template
-            value_template: "{{ trigger.entity_id == 'input_datetime.axle_event_start_trigger' }}"
+            value_template: >
+              {{ trigger.platform == 'time'
+                 and trigger.entity_id
+                 == 'input_datetime.axle_event_start_trigger' }}
         sequence:
-          - action: select.select_option
+          - service: select.select_option
             target:
-              entity_id: "{{ fox_operating_mode_entity }}"
+              entity_id: "{{ inverter_mode_entity }}"
             data:
               option: Force Discharge
-          - action: climate.set_temperature
+
+          - service: climate.set_temperature
             target:
-              entity_id: climate.altherma_room_temperature
+              entity_id: "{{ room_climate_entity }}"
             data:
               temperature: 16
-          - action: notify.XXXXXXXXX_gmail_com
+
+          - service: notify.email_notification_service
             data:
               title: Axle event started
               message: "{{ email_message_diagnostic }}"
               target: "{{ email_target }}"
 
-      # Event end
+
+      ############################################
+      # 5. Event end actions
+      ############################################
       - conditions:
           - condition: template
-            value_template: "{{ trigger.entity_id == 'input_datetime.axle_event_end_trigger' }}"
+            value_template: >
+              {{ trigger.platform == 'time'
+                 and trigger.entity_id
+                 == 'input_datetime.axle_event_end_trigger' }}
         sequence:
-          - action: select.select_option
+          - service: select.select_option
             target:
-              entity_id: "{{ fox_operating_mode_entity }}"
+              entity_id: "{{ inverter_mode_entity }}"
             data:
               option: Feed-in First
-          - action: climate.set_temperature
+
+          - service: climate.set_temperature
             target:
-              entity_id: climate.altherma_room_temperature
+              entity_id: "{{ room_climate_entity }}"
             data:
               temperature: 22
-          - action: notify.XXXXXXXXX_gmail_com
+
+          - service: notify.email_notification_service
             data:
+              title: Axle event finished
+              message: "{{ email_message_diagnostic }}"
+              target: "{{ email_target }}"
               title: Axle event finished
               message: "{{ email_message_diagnostic }}"
               target: "{{ email_target }}"
