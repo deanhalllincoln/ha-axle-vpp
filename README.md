@@ -158,7 +158,7 @@ gantt
 1. Open **HACS**
 2. Go to **Integrations**
 3. Click the three-dot menu → **Custom repositories**
-4. Add this repository URL
+4. Add this repository URL https://github.com/deanhalllincoln/ha-axle-vpp
 5. Select category: **Integration**
 
 ---
