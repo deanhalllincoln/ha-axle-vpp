@@ -20,32 +20,27 @@ mode: single
 ############################################################
 triggers:
 
-  # Event published or updated (start/end times change)
   - trigger: state
     entity_id:
       - sensor.axle_start_time
       - sensor.axle_end_time
     id: event_published
 
-  # 1 hour before event
   - trigger: state
     entity_id: sensor.axle_event_1_hour_before
     to: "on"
     id: event_prep
 
-  # Event starts
   - trigger: state
     entity_id: sensor.axle_event_in_progress
     to: "on"
     id: event_started
 
-  # Event ends
   - trigger: state
     entity_id: sensor.axle_event_in_progress
     to: "off"
     id: event_finished
 
-  # Battery SOC changes (logic only, no emails)
   - trigger: state
     entity_id: sensor.your_battery_soc_entity
     id: soc_update
@@ -56,7 +51,6 @@ triggers:
 ############################################################
 conditions:
 
-  # Ensure event times are valid
   - condition: template
     value_template: >
       {{ states('sensor.axle_start_time') not in ['', 'unknown', 'unavailable']
@@ -64,14 +58,13 @@ conditions:
          and as_timestamp(states('sensor.axle_end_time'))
             > as_timestamp(states('sensor.axle_start_time')) }}
 
-  # Only act during EXPORT events
   - condition: template
     value_template: >
       {{ states('sensor.axle_import_export') | lower == 'export' }}
 
 
 ############################################################
-# VARIABLES (EDIT TO MATCH YOUR SYSTEM)
+# VARIABLES
 ############################################################
 actions:
   - variables:
@@ -80,11 +73,24 @@ actions:
       event_start_ts: "{{ as_timestamp(states('sensor.axle_start_time')) }}"
       event_end_ts: "{{ as_timestamp(states('sensor.axle_end_time')) }}"
       now_ts: "{{ as_timestamp(now()) }}"
+
       event_duration_hours: >
         {{ ((event_end_ts - event_start_ts) / 3600) | float(3) }}
 
+      # --- Local time formatting (BST/GMT aware) ---
+      event_start_local: >
+        {{ event_start_ts | timestamp_custom('%d/%m %H:%M', true) }}
+
+      event_end_local: >
+        {{ event_end_ts | timestamp_custom('%H:%M', true) }}
+
+      event_start_local_full: >
+        {{ event_start_ts | timestamp_custom('%Y-%m-%d %H:%M:%S %Z', true) }}
+
+      event_end_local_full: >
+        {{ event_end_ts | timestamp_custom('%Y-%m-%d %H:%M:%S %Z', true) }}
+
       # --- BATTERY CONFIGURATION ---
-      # EDIT THESE VALUES FOR YOUR BATTERY
       battery_capacity_kwh: 20.0
       min_soc_percent: 10
       inverter_max_export_kw: 5
@@ -146,22 +152,21 @@ actions:
           0
         {% endif %}
 
-      # --- EDIT THESE ENTITIES FOR YOUR SYSTEM ---
+      # --- ENTITIES (EDIT THESE) ---
       inverter_mode_entity: select.your_inverter_mode
       inverter_max_soc_entity: number.your_inverter_max_soc
       inverter_force_charge_power_entity: number.your_inverter_force_charge_power
       climate_entity: climate.your_room_thermostat
 
-      # --- EMAIL CONFIGURATION ---
-      # Replace with your notify service + email
+      # --- EMAIL CONFIG ---
       notify_service: notify.your_notification_service
       email_target: your_email@example.com
 
       email_message: >
         Axle Event Diagnostic
 
-        Start: {{ states('sensor.axle_start_time') }}
-        End: {{ states('sensor.axle_end_time') }}
+        Start: {{ event_start_local_full }}
+        End: {{ event_end_local_full }}
         Duration: {{ event_duration_hours | round(2) }} hours
 
         Battery SOC: {{ battery_soc_number | round(1) }} %
@@ -183,20 +188,20 @@ actions:
         sequence:
           - service: "{{ notify_service }}"
             data:
-              title: Axle event published
+              title: >
+                Axle event published ({{ event_start_local }} - {{ event_end_local }})
               message: "{{ email_message }}"
               target: "{{ email_target }}"
 
 
       ########################################################
-      # 2. Event Prep (1 hour before)
+      # 2. Event Prep
       ########################################################
       - conditions:
           - condition: trigger
             id: event_prep
         sequence:
 
-          # Force charge if needed
           - choose:
               - conditions:
                   - condition: template
@@ -224,7 +229,8 @@ actions:
 
           - service: "{{ notify_service }}"
             data:
-              title: Axle event prep started
+              title: >
+                Axle event prep started ({{ event_start_local }} - {{ event_end_local }})
               message: "{{ email_message }}"
               target: "{{ email_target }}"
 
@@ -250,7 +256,8 @@ actions:
 
           - service: "{{ notify_service }}"
             data:
-              title: Axle event started
+              title: >
+                Axle event started ({{ event_start_local }} - {{ event_end_local }})
               message: "{{ email_message }}"
               target: "{{ email_target }}"
 
@@ -276,6 +283,7 @@ actions:
 
           - service: "{{ notify_service }}"
             data:
-              title: Axle event finished
+              title: >
+                Axle event finished ({{ event_start_local }} - {{ event_end_local }})
               message: "{{ email_message }}"
               target: "{{ email_target }}"
