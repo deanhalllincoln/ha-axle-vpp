@@ -155,6 +155,8 @@ gantt
 
 ## Step 1: Add Custom Repository in HACS
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=deanhalllincoln&repository=ha-axle-vpp&category=Integration)
+
 1. Open **HACS**
 2. Go to **Integrations**
 3. Click the three-dot menu → **Custom repositories**
