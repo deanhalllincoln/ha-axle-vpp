@@ -1,0 +1,50 @@
+alias: Axle VPP - Force Discharge During Event using calendar functionality
+description: >
+  Automatically enables inverter force discharge when an Axle VPP calendar
+  event starts, and disables it when the event ends. This ensures the battery
+  is discharged during scheduled grid export periods.
+
+mode: single
+
+trigger:
+  - platform: calendar
+    event: start
+    entity_id: calendar.axle_next_event
+    note: Trigger when the Axle VPP calendar event begins
+
+  - platform: calendar
+    event: end
+    entity_id: calendar.axle_next_event
+    note: Trigger when the Axle VPP calendar event ends
+
+action:
+  - choose:
+
+      # -----------------------------
+      # EVENT START LOGIC
+      # -----------------------------
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.event == 'start' }}"
+            note: Only run this branch when the calendar event is starting
+
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: switch.inverter_force_discharge
+            note: Enable force discharge mode on the inverter, Replace entity_id with your actual inverter control entity
+
+      # -----------------------------
+      # EVENT END LOGIC
+      # -----------------------------
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.event == 'end' }}"
+            note: Only run this branch when the calendar event is ending
+
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: switch.inverter_force_discharge
+          # Disable force discharge and return inverter to normal operation
+          # NOTE: This assumes turning OFF restores default inverter behaviour
