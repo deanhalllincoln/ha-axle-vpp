@@ -85,6 +85,66 @@ This ensures:
 
 These date-based sensors automatically reset at midnight.
 
+
+## 🆕 Calendar Entity
+
+Version 1.0.11 adds a native Home Assistant Calendar entity that exposes the next scheduled Axle VPP event.
+
+The calendar entity is created automatically when the integration is installed or upgraded. No additional configuration is required.
+
+### 📅 Calendar Entity
+
+| Entity | Description |
+|--------|-------------|
+| `calendar.axle_next_event` | Displays the next scheduled Axle Import or Export event |
+
+### ✨ Calendar Features
+
+- Shows upcoming Axle Import and Export events
+- Displays event start and end times in your local timezone
+- Automatically updates when Axle publishes a new event
+- Automatically removes events when they are no longer provided by the Axle API
+- Includes additional event metadata as entity attributes
+
+### 🧾 Event Attributes
+
+| Attribute | Description |
+|-----------|-------------|
+| `import_export` | Indicates whether the event is an Import or Export event |
+| `updated_at` | Timestamp of the latest data received from Axle |
+
+---
+
+
+## 📁 Updated Directory Structure
+
+```text
+custom_components/axle_vpp/
+├── __init__.py
+├── manifest.json
+├── const.py
+├── coordinator.py
+├── sensor.py
+├── calendar.py
+├── config_flow.py
+└── strings.json
+````
+
+```
+## 🔄 Existing Functionality Unchanged
+
+The addition of the calendar entity does **not** replace or modify any existing sensors or binary sensors.
+
+All existing entities continue to function exactly as before, including:
+
+- Core API sensors
+- Friendly timestamp sensors
+- Calculated sensors
+- Time-based binary sensors
+- Date-based binary sensors
+- Dynamic polling behaviour
+
+The calendar entity simply provides an additional way to view upcoming Axle VPP events using Home Assistant's native calendar functionality.
 ---
 
 ## 🧠 Architecture Overview
@@ -235,6 +295,7 @@ custom_components/axle_vpp/
 ├── const.py
 ├── coordinator.py
 ├── sensor.py
+├── calendar.py
 ├── config_flow.py
 └── strings.json
 ```
