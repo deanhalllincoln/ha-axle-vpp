@@ -14,7 +14,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     token = entry.data[CONF_TOKEN]
-    api = AxleApi(token)
+    api = AxleApi(hass, token)
 
     coordinator = AxleCoordinator(hass, api)
 

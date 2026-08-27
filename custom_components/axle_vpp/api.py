@@ -1,5 +1,8 @@
-import aiohttp
 from datetime import datetime
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
 
 class AxleApi:
     """
@@ -10,8 +13,9 @@ class AxleApi:
 
     BASE_URL = "https://api.axle.energy/vpp/home-assistant/event"
 
-    def __init__(self, token: str):
+    def __init__(self, hass: HomeAssistant, token: str):
         self.token = token
+        self.session = async_get_clientsession(hass)
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "application/json",
@@ -28,11 +32,10 @@ class AxleApi:
             Exception on network or API errors.
         """
         try:
-            async with aiohttp.ClientSession(headers=self.headers) as session:
-                async with session.get(self.BASE_URL) as resp:
-                    if resp.status != 200:
-                        raise Exception(f"Axle API returned status {resp.status}")
-                    data = await resp.json()
+            async with self.session.get(self.BASE_URL, headers=self.headers) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Axle API returned status {resp.status}")
+                data = await resp.json()
         except Exception as err:
             raise Exception(f"Error fetching Axle API: {err}") from err
 
