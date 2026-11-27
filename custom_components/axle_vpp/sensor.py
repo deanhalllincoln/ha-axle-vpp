@@ -49,6 +49,11 @@ TIME_BASED_BINARY_SENSORS = {
     "event_2_hours_before": "Axle Event 2 Hours Before",
 }
 
+# Binary sensors taken straight from the API rather than derived from timings
+API_BINARY_SENSORS = {
+    "opted_out": "Axle Opted Out",
+}
+
 # Date-based binary sensors (your requested additions)
 DATE_BASED_BINARY_SENSORS = {
     "event_tomorrow": "Axle Event Tomorrow",
@@ -84,6 +89,10 @@ async def async_setup_entry(
 
     # Date-based binary sensors
     for key, name in DATE_BASED_BINARY_SENSORS.items():
+        entities.append(AxleEventBinarySensor(coordinator, key, name))
+
+    # Binary sensors straight from the API
+    for key, name in API_BINARY_SENSORS.items():
         entities.append(AxleEventBinarySensor(coordinator, key, name))
 
     async_add_entities(entities)
@@ -224,6 +233,12 @@ class AxleEventBinarySensor(AxleBase, BinarySensorEntity):
     def is_on(self):
         data = self.coordinator.data or {}
         now = dt_util.utcnow()
+
+        # Reported by the API independently of any event, so it has to be
+        # answered before the start/end guard below: an opted-out site
+        # usually has no event scheduled at all.
+        if self._key == "opted_out":
+            return bool(data.get("opted_out"))
 
         start_raw = data.get("start_time")
         end_raw = data.get("end_time")

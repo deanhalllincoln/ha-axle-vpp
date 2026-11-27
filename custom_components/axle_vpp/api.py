@@ -26,8 +26,8 @@ class AxleApi:
         Fetch the latest VPP event from Axle.
 
         Returns:
-            dict with keys: start_time, end_time, import_export, updated_at
-            or None if no event is active.
+            dict with keys: start_time, end_time, import_export, opted_out,
+            updated_at, or None if no event is active.
         Raises:
             Exception on network or API errors.
         """
@@ -49,6 +49,7 @@ class AxleApi:
             "end_time": data.get("end_time"),                   # ISO 8601 string
             "import_export": data.get("import_export", 0),      # Default to 0
             "updated_at": data.get("updated_at", datetime.utcnow().isoformat() + "Z"),
+            "opted_out": bool(data.get("opted_out", False)),    # Site opted out of dispatch
         }
 
         return event
