@@ -126,4 +126,5 @@ class AxleNextEventCalendar(CalendarEntity):
         return {
             "import_export": data.get("import_export"),
             "updated_at": data.get("updated_at"),
+            "opted_out": data.get("opted_out"),
         }
